@@ -1,68 +1,63 @@
 import math
-
-
-def lcm(a, b):
-    m = a * b
-    while a != 0 and b != 0:
-        if a > b:
-            a %= b
-        else:
-            b %= a
-    return m // (a + b)
-
-
-class ZeroDenominatorError(Exception):
-    def __init__(self):
-        super(ZeroDenominatorError, self).__init__('на ноль делить низя')
+from exceptions.zero_denominator_error import *
 
 
 class Fraction:
     def __init__(self, numerator, denominator):
-        self.integer = 0
         self.numerator = numerator
         self.denominator = denominator
-
-
-        if self.denominator < self.numerator:
-            self.integer = self.numerator // self.denominator
-            self.numerator = self.numerator - self.denominator * self.integer
+        self.sign = 1
 
         if self.denominator == 0:
             raise ZeroDenominatorError()
+
+        if self.denominator < 0 and self.numerator < 0:
+            self.sign = 1
+            self.denominator = abs(self.denominator)
+            self.numerator = abs(self.numerator)
+
+        elif self.denominator < 0:
+            self.sign = -1
+            self.denominator = abs(self.denominator)
+
+        elif self.numerator < 0:
+            self.sign = -1
+            self.numerator = abs(self.numerator)
 
         self.k = math.gcd(self.numerator, self.denominator)
         if self.k != 1:
             self.numerator = self.numerator // self.k
             self.denominator = self.denominator // self.k
 
+    def __raw__add__(self, sign, numerator, denominator):
+        new_denominator = math.lcm(self.denominator, denominator)
+        new_numerator = int(self.sign * self.numerator * (new_denominator / self.denominator) \
+                            + sign * numerator * (new_denominator /denominator))
+
+        return new_denominator, new_numerator
+
     def __add__(self, other):
         if isinstance(other, Fraction):
-            new_integer = self.integer + other.integer
-            new_denominator = lcm(self.denominator, other.denominator)
-            new_numerator = int(self.numerator * (new_denominator / self.denominator) \
-                                + other.numerator * (new_denominator / other.denominator))
-            # new_numerator += new_integer * new_denominator
-            # new_integer = 0
+            new_denominator, new_numerator = self.__raw__add__(other.sign, other.numerator, other.denominator)
 
         elif isinstance(other, int):
-            new_denominator = self.denominator
-            new_numerator = int(self.numerator + other.numerator * self.denominator)
+            new_denominator, new_numerator = self.__raw__add__(1, other, 1)
 
         elif isinstance(other, float):
             raise TypeError(other)
         else:
             raise Exception('Not int or Fraction value.')
 
-        return FractionWithInteger(int(new_integer), new_numerator, new_denominator)
+        return Fraction(new_numerator, new_denominator)
 
     def __iadd__(self, other):
         return self + other
 
     def __str__(self):
-        if self.integer:
-            return f'{self.integer} {self.numerator}/{self.denominator}'
-        else:
+        if self.sign == 1:
             return f'{self.numerator}/{self.denominator}'
+        if self.sign == -1:
+            return f'-{self.numerator}/{self.denominator}'
 
     def __float__(self):
         return self.numerator / self.denominator
@@ -73,24 +68,47 @@ class FractionWithInteger(Fraction):
         super(FractionWithInteger, self).__init__(numerator, denominator)
         self.integer = integer
 
+        if self.integer < 0:
+            self.sign *= -1
+            self.integer = abs(self.integer)
+        
+        if self.denominator < self.numerator:
+            self.integer += self.numerator // self.denominator
+            self.numerator = self.numerator - self.denominator * (self.numerator // self.denominator)
+
+        if self.denominator == 1:
+            self.integer += self.numerator
+            self.numerator = 0
+
+    def __add__(self, other):
+        if isinstance(other, FractionWithInteger):
+            new_integer = self.integer * self.sign + other.integer * other.sign
+            new_denominator, new_numerator = self.__raw__add__(other.sign, other.numerator, other.denominator)
+
+        return FractionWithInteger(new_integer, new_numerator, new_denominator)
+
     def __str__(self):
-        return f'{self.integer} {self.numerator}/{self.denominator}'
+        prefix = '' if self.sign > 0 else '-'
+        if self.numerator == 0:
+            return f'{prefix}{self.integer}'
+        return f'{prefix}{self.integer} {self.numerator}/{self.denominator}'
 
 
-frac1 = Fraction(3, 2)
-frac2 = Fraction(2, 4)
-print(frac1)
-print(frac2)
+# frac1 = Fraction(-1, -4)
+# frac2 = Fraction(-3, 4)
+# print(frac1)
+# print(frac2)
 
-frac1 += frac2
-print(frac1)
+# frac1 += frac2
+# print(frac1)
 
-# frac3 = Fraction(4,36)
-# print(frac3)
 
-#
-# intfrac = Fraction(5,4)
-# print(intfrac)
-# intfrac2 = Fraction(1,4)
-# print(intfrac2)
+frac3 = FractionWithInteger(0,-4,2)
+frac4 = FractionWithInteger(1,4,2)
+
+print(frac3)
+print(frac4)
+
+print(frac3 + frac4)
+
 
